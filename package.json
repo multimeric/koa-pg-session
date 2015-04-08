@@ -1,29 +1,31 @@
 {
-  "name": "koa-mysql-session",
-  "version": "0.0.1",
-  "description": "a session store compatible with koa-generic-session based off of the SQL logic in the connect mysql-session-store project",
+  "name": "koa-pg-session",
+  "version": "1.0.0",
+  "description": "A model implementation of sessions for koa using postgres as the backend",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tb01923/koa-mysql-session.git"
+    "url": "https://github.com/TMiguelT/koa-pg-session"
   },
-  "keywords": [
-    "koa",
-    "session",
-    "mysql",
-    "nodejs"
-  ],
-  "author": "todd brown",
+  "author": "Michael Milton <michael.r.milton@gmail.com> (http://protomeric.com/)",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/tb01923/koa-mysql-session/issues"
+    "url": "https://github.com/TMiguelT/koa-pg-session/issues"
   },
-  "homepage": "https://github.com/tb01923/koa-mysql-session",
+  "homepage": "https://github.com/TMiguelT/koa-pg-session",
   "dependencies": {
-    "co": "^3.1.0",
-    "co-mysql": "^0.4.1"
+    "co": "^4.5.1",
+    "co-pg": "^1.3.1",
+    "merge": "^1.2.0",
+    "pg": "^4.3.0",
+    "pg-escape": "0.0.3"
+  },
+  "devDependencies": {
+    "bluebird": "^2.9.24",
+    "sinon": "^1.14.1",
+    "sinon-promise": "^0.1.3"
   }
 }
