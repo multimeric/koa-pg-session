@@ -53,6 +53,8 @@ var PgStore = require('koa-pg-session');
 new PgStore(connection, options);
 ```
 
+#### connection
+
 The first parameter, `connection`, is a connection object or connect string that will be passed *directly* into the pg module. As of the writing of this, `connection` can either be a connection string, e.g. `"postgres://username:password@localhost/database"`, or it can be a connection object, e.g.
 ```javascript
 {
@@ -66,12 +68,14 @@ The first parameter, `connection`, is a connection object or connect string that
 
 For further information, see the [pg module's documentation](https://github.com/brianc/node-postgres/wiki/pg#connectstring-connectionstring-function-callback).
 
+#### options
+
 The second parameter, `options`, is an object consisting of all optional keys.
 
-`schema` String. defines the schema in which to create or find the table that we will use to store session data. Defaults to `public`
-`table` String. defines the name of the sessions table that we will create or find. Defaults to `session`
-`create` Boolean. True if the module is allowed to create a new table to store sessions. Defaults to `true`
-`cleanupTime` Number, in milliseconds. The amount of time between cleaning up the database for old sessions. Defaults to 162000000 (45 minutes)
+* `schema` String. defines the schema in which to create or find the table that we will use to store session data. Defaults to `public`
+* `table` String. defines the name of the sessions table that we will create or find. Defaults to `session`
+* `create` Boolean. True if the module is allowed to create a new table to store sessions. Defaults to `true`
+* `cleanupTime` Number, in milliseconds. The amount of time between cleaning up the database for old sessions. Defaults to 162000000 (45 minutes)
 
 ### koa-generic-session options
 
