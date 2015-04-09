@@ -3,7 +3,6 @@ var sinon = require("sinon-es6");
 var Promise = require('bluebird');
 var proxyquire = require('proxyquire');
 var PgSession = require("../index");
-var co = require('co');
 require('co-mocha');
 
 

@@ -28,8 +28,6 @@
     "co-mocha": "^1.1.0",
     "mocha": "^2.2.4",
     "proxyquire": "^1.4.0",
-    "sinon": "^1.14.1",
-    "sinon-es6": "0.0.3",
-    "sinon-promise": "^0.1.3"
+    "sinon-es6": "0.0.3"
   }
 }

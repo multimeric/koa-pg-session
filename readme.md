@@ -88,3 +88,6 @@ app.use(session({
 }))
 ```
 
+## Testing
+
+You can test the module using `npm test`, or just `mocha`. The tests are located in test.js in the test directory.
