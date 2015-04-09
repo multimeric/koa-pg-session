@@ -1,6 +1,6 @@
 {
   "name": "koa-pg-session",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A model implementation of sessions for koa using postgres as the backend",
   "main": "index.js",
   "scripts": {
