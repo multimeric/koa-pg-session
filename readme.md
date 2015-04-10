@@ -46,7 +46,7 @@ You can also change the name of the table as explained in the [constructor](#con
 
 ### Constructor
 
-The koa-pg-session module returns a constructor function that takes two parameters, `connection`, and `session`:
+The koa-pg-session module returns a constructor function that takes two parameters, `connection`, and `options`:
 
 ```javascript
 var PgStore = require('koa-pg-session');
