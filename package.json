@@ -2,13 +2,25 @@
   "name": "koa-pg-session",
   "version": "1.2.0",
   "description": "A session store implementation for koa's generic-session module, using postgres as the backend",
-  "keywords": ["session", "cookies", "middleware", "koa", "postgres",  "pg", "rdbms", "database"],
+  "keywords": [
+    "session",
+    "cookies",
+    "middleware",
+    "koa",
+    "postgres",
+    "pg",
+    "rdbms",
+    "database"
+  ],
   "main": "index.js",
   "license": "MIT",
   "scripts": {
     "test": "mocha --harmony"
   },
-  "engines" : { "node" : ">=0.12" },
+  "engines": {
+    "node": ">= 0.11.16",
+    "iojs": ">= 1.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/TMiguelT/koa-pg-session"
