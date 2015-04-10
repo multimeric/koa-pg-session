@@ -5,13 +5,14 @@ const co = require('co');
 const pg = require('co-pg')(require('pg'));
 const merge = require('merge');
 const escape = require('pg-escape');
+const ms = require('ms');
 
 //Constants
 const defaultOpts = {
     schema: "public",
     table: "session",
     create: true, //Create a new session table by default
-    cleanupTime: 45 * 1000 * 60 * 60 //45 minutes
+    cleanupTime: ms('45 minutes')
 };
 
 /**
