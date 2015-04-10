@@ -20,22 +20,24 @@ describe('PgSession constructor', function () {
 
     it('should start the cleanup when create=true', function (done) {
 
-        //Spy on the cleanup method and make the query a stub that returns a promise
-        var cleanup = sandbox.stub(PgSession.prototype, "cleanup");
-        sandbox.stub(PgSession.prototype, "query").returns(new Promise(function () {
+        //Spy on the cleanup method. We're done when it's called
+        var cleanup = sandbox.stub(PgSession.prototype, "cleanup", function () {
             done();
-        }));
+        });
 
-        //Call the constructor with create: true and create: false
+        //Make the query a stub that returns a promise to we can continue the promise chain
+        sandbox.stub(PgSession.prototype, "query").returns(Promise.resolve());
+
+        //Call the constructor with create: true
         new PgSession("", {create: true});
     });
 
     it('should start the cleanup when create=false', function (done) {
 
-        //Spy on the cleanup method and make the query a stub that returns a promise
+        //Spy on the cleanup method. We're done when it's called
         var cleanup = sandbox.stub(PgSession.prototype, "cleanup");
 
-        //Call the constructor with create: true and create: false
+        //Call the constructor with create: false
         new PgSession("", {create: false});
         assert(cleanup.called);
         done();
