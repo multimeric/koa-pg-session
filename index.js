@@ -51,10 +51,17 @@ function PgSession(connection, options) {
  */
 PgSession.prototype.query = function *(sql, params) {
 
-    //Connect using the saved connection settings
-    const connectionResults = yield pg.connectPromise(this.connection);
-    const client = connectionResults[0];
-    const done = connectionResults[1];
+    let client, done;
+    if (this.connection.client && this.connection.done) {
+        //Connect using a koa-pg client pool
+        client = this.connection.client;
+        done = this.connection.done;
+    } else {
+        //or build our own by passing the connection settings to co-pg
+        const connectionResults = yield pg.connectPromise(this.connection);
+        client = connectionResults[0];
+        done = connectionResults[1];
+    }
 
     //Run the query, return the client to the pool, then return the query result
     const result = yield client.queryPromise(sql, params);
