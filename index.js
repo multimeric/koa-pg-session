@@ -110,7 +110,7 @@ PgSession.prototype.set = function *(sid, sess, ttl) {
  * @param sid The Koa session ID of the session to destroy
  */
 PgSession.prototype.destroy = function *(sid) {
-    yield this.query(this.destroyValueSql, sid);
+    yield this.query(this.destroyValueSql, [sid]);
 };
 
 /**
