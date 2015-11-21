@@ -1,270 +1,94 @@
-var assert = require("assert");
-var sinon = require("sinon-es6");
-var Promise = require('bluebird');
-var proxyquire = require('proxyquire');
-var PgSession = require("../index");
+"use strict";
+
 require('co-mocha');
+const PgSession = require("../index");
+const Promise = require('bluebird');
 
+/**
+ * Load the connection data from a local config file.
+ * Whoever is running this test must provide this config file, which must export a JS object/be a JSON file
+ * that contains the connection data for a postgres database.
+ * e.g. module.exports = {
+    user: 'brianc',
+    password: 'boom!',
+    database: 'test',
+    host: 'example.com',
+    port: 5313
+};
+ */
+const connection = require('./config');
 
-//Sandbox everything always
-var sandbox;
-beforeEach(function () {
-    sandbox = sinon.sandbox.create();
-});
+const pgp = require('pg-promise')();
+const db = pgp(connection);
 
-afterEach(function () {
-    sandbox.restore();
-});
+/**
+ * Created by miguel on 21/11/15.
+ */
+describe('PgSession constructor', () => {
 
-describe('PgSession constructor', function () {
+    /**
+     * Returns true if the given table exists
+     * @param table An object of the form {schema, table} that refers to a specific table to check
+     */
+    function* tableExists(table){
+        return (yield db.query(`
+               SELECT COUNT(*) > 0 as exists
+               FROM   information_schema.tables
+               WHERE  table_schema = $[schema]
+               AND    table_name = $[table]
+            `, table))[0].exists;
+    }
 
-    it('should start the cleanup when create=true', function (done) {
-
-        //Spy on the cleanup method. We're done when it's called
-        var cleanup = sandbox.stub(PgSession.prototype, "cleanup", function () {
-            done();
-        });
-
-        //Make the query a stub that returns a promise to we can continue the promise chain
-        sandbox.stub(PgSession.prototype, "query").returns(Promise.resolve());
-
-        //Call the constructor with create: true
-        new PgSession("", {create: true});
-    });
-
-    it('should start the cleanup when create=false', function (done) {
-
-        //Spy on the cleanup method. We're done when it's called
-        var cleanup = sandbox.stub(PgSession.prototype, "cleanup");
-
-        //Call the constructor with create: false
-        new PgSession("", {create: false});
-        assert(cleanup.called);
-        done();
-    });
-
-
-    it("should run the create table SQL if create=true", function (done) {
-        sandbox.stub(PgSession.prototype, "query", function (arg) {
-            if (arg.indexOf("CREATE TABLE") == -1)
-                done(new Error());
-            else
-                done();
-        });
-
-        new PgSession("", {create: true});
-    });
-
-});
-
-describe('#query method', function () {
-
-    const pg = require('co-pg')(require('pg'));
-    var opts = {
-        some: "var",
-        other: "value"
-    };
-    var fakeSession = {
-        options: opts
+    //The location to put the test table
+    const sampleTable = {
+        table: 'sampleTable',
+        schema: '__koa_pg_session_test'
     };
 
-    it("should connect to the database with the given input options", function () {
-        sandbox.mock(pg).expects("connectPromise").once().withArgs(opts);
-        PgSession.prototype.query.call(fakeSession);
-    });
+    it('should create a table and schema with the correct names if create=true', done => {
 
-    it("should query with the values passed in", function *(done) {
-        var sql = "SOME SQL";
-        var params = [1, "Fred"];
-        var stub = sinon.stub().returns(Promise.resolve());
+        //Make the session
+        let session = new PgSession(connection, Object.assign({create: true}, sampleTable));
 
-        var MockedPgSession = proxyquire("../index", {
-            "co-pg": function (pg) {
-                //Add the connectPromise method
-                pg = require('co-pg')(pg);
+        //Now wait for it to finish, then test to see if it's in the database
+        Promise.coroutine(function*() {
+            if (yield* tableExists(sampleTable))
+                done(new Error("Table already exists: delete it then re-run the test"));
 
-                //Then stub it
-                sandbox.stub(pg, "connectPromise").returns(Promise.resolve(
-                    [
-                        {
-                            queryPromise: stub
-                        },
-                        sinon.stub()
-                    ]));
+            yield session.setup();
 
-                return pg;
-            }
-        });
+            console.log(session.createSql);
 
-        yield MockedPgSession.prototype.query.call(fakeSession, sql, params);
-
-        try {
-            assert(stub.calledOnce && stub.alwaysCalledWith(sql, params));
-        }
-        catch (e) {
-            done(e)
-        }
-
-        done();
-
-    });
-});
-
-describe("#get method", function (done) {
-
-    it("should call #query", function *(done) {
-        var proxy = {
-            getValueSql: "",
-            query: function () {
+            //If the table exists, everything's working, but also delete it to clean up
+            let exists = yield* tableExists(sampleTable);
+            console.log(`Exists? ${exists}`);
+            if (exists) {
+                yield db.query(`DROP SCHEMA ${sampleTable.schema} CASCADE`);
                 done();
             }
-        };
-
-        yield PgSession.prototype.get.call(proxy);
-    });
-
-    it("should return false if no rows were returned", function *(done) {
-        var proxy = {
-            getValueSql: "",
-            query: function *() {
-                return {rows: []};
-            }
-        };
-
-        var res = yield PgSession.prototype.get.call(proxy);
-        if (res === false)
-            done();
-        else
-            done(new Error());
-    })
-});
-
-describe("#set method", function () {
-    var update = "UPDATE";
-    var insert = "INSERT";
-    var fakeSession = {
-        updateValueSql: update,
-        insertValueSql: insert
-    };
-
-    it("should update an existing row if it exists", function *(done) {
-        //Pretend that the row already exists
-        fakeSession.get = function () {
-            return Promise.resolve(true);
-        };
-
-        //When query is run, make sure it's with the right SQL
-        fakeSession.query = function (sql) {
-            if (sql === update)
-                done();
             else
-                done(new Error());
-        };
-
-        yield PgSession.prototype.set.call(fakeSession);
+                done(new Error("Table not created"));
+        })();
     });
 
-    it("should insert a existing row if it doesn't already exist", function *(done) {
-        //Pretend that the row doesn't already exist
-        fakeSession.get = function () {
-            return Promise.resolve(false);
-        };
+    it('should not create a table if create=false', done => {
 
-        //When query is run, make sure it's with the right SQL
-        fakeSession.query = function (sql) {
-            if (sql === insert)
-                done();
-            else
-                done(new Error());
-        };
+        //Make the session
+        let session = new PgSession(connection, Object.assign({create: false}, sampleTable));
 
-        yield PgSession.prototype.set.call(fakeSession);
-    });
-});
+        //Now wait for it to finish, then test to see if it's in the database
+        Promise.coroutine(function*() {
+            if (yield* tableExists(sampleTable))
+                done(new Error("Table already exists: delete it then re-run the test"));
 
-describe("#destroy method", function () {
-    it("calls #query with an SQL DELETE statement", function *(done) {
-        var del = "DELETE";
-        var fakeSession = {
-            destroyValueSql: del,
-            query: function (sql) {
-                if (sql === del)
-                    done();
-                else
-                    done(new Error());
+            yield session.setup();
+
+            //If the table exists, everything's working, but also delete it to clean up
+            if (yield* tableExists(sampleTable)) {
+                done(new Error("Table was created"));
             }
-        };
-
-        yield PgSession.prototype.destroy.call(fakeSession);
-    });
-});
-
-describe("#cleanup method", function () {
-    it("calls #query after the cleanupTime interval", function *(done) {
-        var time = 2;
-        var cleanup = "DELETE";
-        var spy = sinon.spy();
-
-        var fakeSession = {
-            options: {
-                cleanupTime: time
-            },
-            query: spy,
-            cleanupSql: cleanup
-        };
-
-        setTimeout(function () {
-            if (spy.called && spy.alwaysCalledWith(cleanup))
-                done();
             else
-                done(new Error());
-        }, time * 2);
-
-        yield PgSession.prototype.cleanup.call(fakeSession);
-    });
-});
-
-describe("SQL Properties", function () {
-
-    var fakeSession = Object.create(PgSession.prototype);
-    fakeSession.options = {
-        schema: "public",
-        table: "session"
-    };
-
-    describe("createSql property", function () {
-        it("needs to have a CREATE TABLE statement", function () {
-            assert(fakeSession.createSql.indexOf("CREATE TABLE") != -1);
-        });
-    });
-
-    describe("getValueSql property", function () {
-        it("needs to have a SELECT statement", function () {
-            assert(fakeSession.getValueSql.indexOf("SELECT") != -1);
-        });
-    });
-
-    describe("updateValueSql property", function () {
-        it("needs to have an UPDATE statement", function () {
-            assert(fakeSession.updateValueSql.indexOf("UPDATE") != -1);
-        });
-    });
-
-    describe("insertValueSql property", function () {
-        it("needs to have an INSERT statement", function () {
-            assert(fakeSession.insertValueSql.indexOf("INSERT") != -1);
-        });
-    });
-
-    describe("destroyValueSql property", function () {
-        it("needs to have a DELETE statement", function () {
-            assert(fakeSession.destroyValueSql.indexOf("DELETE FROM") != -1);
-        });
-    });
-
-    describe("cleanupSql property", function () {
-        it("needs to have a DELETE statement", function () {
-            assert(fakeSession.cleanupSql.indexOf("DELETE FROM") != -1);
-        });
+                done();
+        })();
     });
 });

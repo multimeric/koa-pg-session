@@ -1,11 +1,10 @@
 "use strict";
 
 //Requires
-const co = require('co');
-const pg = require('co-pg')(require('pg'));
-const merge = require('merge');
+const pgp = require('pg-promise')();
 const escape = require('pg-escape');
 const ms = require('ms');
+const Promise = require('bluebird');
 
 //Constants
 const defaultOpts = {
@@ -23,50 +22,38 @@ const defaultOpts = {
  */
 function PgSession(connection, options) {
 
-    //Save the parameters to the object
-    this.connection = connection;
-    this.options = merge(defaultOpts, options);
+    //Create a PG client and store it in the object
+    this.db= pgp(connection);
 
-    //If we need to create a table, do so asynchronously
+    //And store the session options
+    this.options = Object.assign({}, defaultOpts, options);
+}
+
+/**
+ * Starts the cleanup and creates the session tables if necessary
+ * @returns A promise that resolves when the setup has completed
+ */
+PgSession.prototype.setup = function () {
+
     let sess = this;
+
+    //If we need to create the tables, return a promise that resolves once the query completes
     if (this.options.create) {
-        co(function *() {
-            return yield sess.query(sess.createSql);
-        //Then set up the table cleanup
-        }).then(function () {
+
+        return Promise.coroutine(function *() {
+            return yield sess.db.query(sess.createSql);
+            //Then set up the table cleanup
+        })().then(function () {
             sess.cleanup();
         });
 
     }
 
-    //Otherwise just setup the cleanup
-    else
+    //Otherwise just setup the cleanup and return an empty promise
+    else {
         sess.cleanup();
-}
-
-/**
- * Runs an SQL query asynchronously, using generators
- * @param sql The raw SQL to use as the query
- * @param params Bound parameters to be used in the query
- */
-PgSession.prototype.query = function *(sql, params) {
-
-    let client, done;
-    if (this.connection.client && this.connection.done) {
-        //Connect using a koa-pg client pool
-        client = this.connection.client;
-        done = this.connection.done;
-    } else {
-        //or build our own by passing the connection settings to co-pg
-        const connectionResults = yield pg.connectPromise(this.connection);
-        client = connectionResults[0];
-        done = connectionResults[1];
+        return Promise.resolve();
     }
-
-    //Run the query, return the client to the pool, then return the query result
-    const result = yield client.queryPromise(sql, params);
-    done();
-    return result;
 };
 
 /**
@@ -77,7 +64,7 @@ PgSession.prototype.query = function *(sql, params) {
 PgSession.prototype.get = function *(sid) {
 
     //Get the existing session row
-    const existing = (yield this.query(this.getValueSql, [sid])).rows;
+    const existing = (yield this.db.query(this.getValueSql, [sid])).rows;
 
     //If there is no such row, return false
     if (existing.length <= 0)
@@ -97,12 +84,12 @@ PgSession.prototype.set = function *(sid, sess, ttl) {
 
     //If there is a row, update it
     if (yield this.get(sid))
-        yield this.query(this.updateValueSql, [sess, ttl, sid]);
+        yield this.db.query(this.updateValueSql, [sess, ttl, sid]);
 
     //Otherwise, insert a new row
     //(These two queries intentionally have a different parameter order because of the SQL structure)
     else
-        yield this.query(this.insertValueSql, [sid, sess, ttl]);
+        yield this.db.query(this.insertValueSql, [sid, sess, ttl]);
 };
 
 /**
@@ -110,7 +97,7 @@ PgSession.prototype.set = function *(sid, sess, ttl) {
  * @param sid The Koa session ID of the session to destroy
  */
 PgSession.prototype.destroy = function *(sid) {
-    yield this.query(this.destroyValueSql, [sid]);
+    yield this.db.query(this.destroyValueSql, [sid]);
 };
 
 /**
@@ -121,8 +108,8 @@ PgSession.prototype.cleanup = function () {
 
     //Each interval of cleanupTime, run the cleanup script
     setInterval(function () {
-        co(function *() {
-            yield sess.query(sess.cleanupSql);
+        Promise.coroutine(function *() {
+            yield sess.db.query(sess.cleanupSql);
         });
     }, sess.options.cleanupTime);
 };
@@ -133,11 +120,13 @@ PgSession.prototype.cleanup = function () {
 Object.defineProperty(PgSession.prototype, "createSql", {
     get: function myProperty() {
         return escape(
+            'CREATE SCHEMA IF NOT EXISTS %I;\n' +
             'CREATE TABLE IF NOT EXISTS %I.%I (\n' +
             '   id TEXT NOT NULL PRIMARY KEY,\n' + //This is the Koa session ID
             '   expiry timestamp NOT NULL,\n' + //This is the timestamp of when it will expire
             '   session JSON\n' + //All the session data that has been saved
             ');',
+            this.options.schema,
             this.options.schema,
             this.options.table
         );
