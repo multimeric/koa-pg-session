@@ -189,18 +189,13 @@ describe('#get #set, and #destroy (public interface) functions', ()=> {
     });
 });
 
+describe('Cookie expiry')
+
 describe('Automatic cleanup', ()=> {
     const session = new PgSession(connection, Object.assign({create: true}, sampleTable));
     const expiryTime = 100;
 
-    before(function (done) {
-        //First we have to setup the session manager
-        session.setup().then(()=> {
-            done();
-        })
-    });
-
-    after(function (done) {
+    afterEach(function (done) {
         //Once we're done, delete the table
         deleteSchema(sampleTable).then(() => {
             done();
@@ -209,6 +204,14 @@ describe('Automatic cleanup', ()=> {
 
     it("should still exist before the expiry time has passed", function (done) {
         co(function*() {
+
+            //Create the session and begin cleanup
+            const session = new PgSession(
+                connection,
+                Object.assign({create: true, cleanupTime: expiryTime},
+                    sampleTable)
+            );
+            yield session.setup();
             yield* session.set(sampleID, values, expiryTime);
 
             //Before the expiry time (at 50ms, when the expiry is 100ms), the session should still be there
@@ -224,6 +227,14 @@ describe('Automatic cleanup', ()=> {
 
     it("should be deleted after the expiry time has passed", function (done) {
         co(function*() {
+
+            //Create the session and begin cleanup
+            const session = new PgSession(
+                connection,
+                Object.assign({create: true, cleanupTime: expiryTime},
+                    sampleTable)
+            );
+            yield session.setup();
             yield* session.set(sampleID, values, expiryTime);
 
             //After the expiry time (at 150ms when the expiry is 100ms), the session should be deleted
@@ -241,6 +252,14 @@ describe('Automatic cleanup', ()=> {
     it("should continue to run the cleanup function", function (done) {
 
         co(function*() {
+
+            //Create the session and begin cleanup
+            const session = new PgSession(
+                connection,
+                Object.assign({create: true, cleanupTime: expiryTime},
+                    sampleTable)
+            );
+            yield session.setup();
 
             //Create the first session
             yield* session.set(sampleID, values, expiryTime);

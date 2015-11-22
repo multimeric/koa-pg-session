@@ -26,6 +26,15 @@ app.use(session({
 }))
 ```
 
+And you can then access and modify session data in your koa web app:
+
+```javascript
+//Whenever we visit the server, update a counter variable in the session and render it as JSON
+app.use(function *() {
+    this.body = this.session.counter++;
+});
+```
+
 ## Database Table
 
 By default, the module will create a new table in the database called 'session', located in the public schema. This table has the schema:
@@ -40,13 +49,13 @@ CREATE TABLE IF NOT EXISTS public.session
 
 If a table with this name already exists, it will be connected to, and the module will assume that these three columns exist in the table, and will fail if they do not. However you can create a table with additional columns without issue.
 
-You can also change the name of the table as explained in the [constructor](#constructor) section, meaning that the module will either create a table with a different name/schema, or it will use an already existing table with this name/schema.
+You can also change the name of the table as explained in the [constructor options](#options) section, meaning that the module will either create a table with a different name/schema, or it will use an already existing table with this name/schema.
 
 ## API
 
 ### Constructor
 
-The koa-pg-session module returns a constructor function that takes two parameters, `connection`, and `options`:
+The koa-pg-session module returns a constructor function that takes two parameters, `connection` and `options`:
 
 ```javascript
 var PgStore = require('koa-pg-session');
@@ -55,22 +64,39 @@ new PgStore(connection, options);
 
 #### connection
 
-The first parameter, `connection`, is a connection object or connect string that will be passed *directly* into the pg module. As of the writing of this, `connection` can either be a connection string:
-```javascript
-"postgres://username:password@localhost/database"
-```
-Or it can be a connection object, e.g.
-```javascript
-{
-      user: 'brianc',
-      password: 'boom!',
-      database: 'test',
-      host: 'example.com',
-      port: 5313
-}
-```
+The first parameter, `connection`, can be two entirely different things.
 
-For further information, see the [pg module's documentation](https://github.com/brianc/node-postgres/wiki/pg#connectstring-connectionstring-function-callback).
+ *  The normal option is to treat `connection` as a connection object or connect string that will be passed *directly*
+    into the pg-promise module. As of the writing of this, `connection` can either be a connection string:
+    ```javascript
+    "postgres://username:password@localhost/database"
+    ```
+    Or it can be a connection object, e.g.
+    ```javascript
+    {
+          user: 'postgres',
+          password: 'password',
+          database: 'postgres',
+          host: 'localhost',
+          port: 5432
+    }
+    ```
+
+If you are using this option, see the [pg module's documentation](https://github.com/brianc/node-postgres/wiki/pg#connectstring-connectionstring-function-callback).
+
+ *  The other option, if you have an existing client for your postgres database, is to pass in a function
+    that will transfer the queries to your client. The function must have the signature (query, parameters),
+    where `query` is a string optionally containing dollar sign parameters ($1, $2 for example), and `parameters` is an
+    array of values to replace these dollar signs with.
+
+    For example if you wanted to use an existing co-pg client (even though this library no longer uses co-pg internally),
+    you could create a PgStore like this:
+
+    ```javascript
+    new PgSession(function(query, args){
+        return client.queryPromise(query, args)
+    }, {create: true});
+    ```
 
 #### options
 
@@ -95,3 +121,10 @@ app.use(session({
 ## Testing
 
 You can test the module using `npm test`, or just `mocha`. The tests are located in test.js in the test directory.
+
+Note that the tests now require an actual postgres server to run, and so you have to create a JS file or JSON file called
+config.js or config.json that exports a connection object which can be used to connect to this postgres server.
+The specifications for this object are explained [above](#connection).
+
+The tests will create a new schema called '__koa_pg_session_test' during the tests in the database you supply, but this
+will be removed once the tests have finished.

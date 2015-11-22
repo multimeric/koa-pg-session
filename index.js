@@ -42,29 +42,31 @@ module.exports = class PgSession {
             schema: "public",
             table: "session",
             create: true, //Create a new session table by default
-            cleanupTime: null
+            cleanupTime: ms("45 minutes")
         };
     }
 
     /**
-     * Creates the session table if necessary
+     * Starts the cleanup, and creates the session table if necessary
      * @returns {*} A promise that resolves when the setup has completed
      */
     setup() {
 
         let sess = this;
 
-        //Note that we're no longer startup the cleanup here. Rather this happens after the first
-        //insertion/session creation
-
         //If we need to create the tables, return a promise that resolves once the query completes
         if (this.options.create) {
-            return sess.query(sess.createSql);
+            return sess.query(sess.createSql).then(()=> {
+                this.cleanup();
+            });
         }
 
         //Otherwise just setup the cleanup and return an empty promise
-        else
-            return Promise.resolve();
+        else {
+            return Promise.resolve().then(()=> {
+                this.cleanup();
+            });
+        }
     };
 
     /**
@@ -97,16 +99,6 @@ module.exports = class PgSession {
 
         ttl = ttl || ms("45 minutes");
         const expiry = (Date.now() + ttl) / 1000;
-
-        //If the ttl is less than our current cleanup interval, decrease the cleanup interval
-        if (ttl < this.options.cleanupTime)
-            this.options.cleanupTime = ttl;
-
-        //Or, if this is the first session we're adding, set the cleanup interval to the TTL, and start the cleanup
-        if (this.options.cleanupTime === null) {
-            this.options.cleanupTime = ttl;
-            this.cleanup();
-        }
 
         //If there is a row, update it
         if (yield* this.get(sid))
