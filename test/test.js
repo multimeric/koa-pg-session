@@ -189,7 +189,7 @@ describe('#get #set, and #destroy (public interface) functions', ()=> {
     });
 });
 
-describe('Cookie expiry')
+//describe('Cookie expiry')
 
 describe('Automatic cleanup', ()=> {
     const session = new PgSession(connection, Object.assign({create: true}, sampleTable));

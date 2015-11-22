@@ -92,6 +92,8 @@ The first parameter, `connection`, can be two entirely different things.
     where `query` is a string optionally containing dollar sign parameters ($1, $2 for example), and `parameters` is an
     array of values to replace these dollar signs with.
 
+    This function must return a promise (and if it doesn't already, make sure you promisify it!), as in the example below.
+
     For example if you wanted to use an existing co-pg client (even though this library no longer uses co-pg internally),
     you could create a PgStore like this:
 

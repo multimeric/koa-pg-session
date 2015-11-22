@@ -12,18 +12,14 @@ module.exports = class PgSession {
      * Creates a new PgSession model for use with koa-session-generic
      * @param connection The connection string or object to be passed directly into the pg module
      * @param options A hash consisting of all optional keys {schema="public", table="session", create=true, cleanupTime = 45 minutes}
-     * @param customClient A boolean, true if they want to pass in their own client, otherwise false (false by default)
-     * @constructor
+    * @constructor
      */
-    constructor(connection, options, customClient) {
+    constructor(connection, options) {
 
-        //If they want to use an existing client, they set customClient to true and pass in a function to
-        //process each query. Their function must return a promise.
-        if (customClient) {
-            if (typeof connection != "function")
-                throw new Error("connection must be a function if customClient is true!");
+        //If they want to use an existing client they must pass in a function to process each query.
+        // Their function must return a promise.
+        if (typeof connection === "function")
             this.query = connection;
-        }
 
         //If they don't want to use an existing client, make our own connection to the database and use that for queries
         else {
