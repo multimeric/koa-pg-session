@@ -1,4 +1,4 @@
- koa-pg-session
+# koa-pg-session
 
 ## Introduction
 
@@ -68,10 +68,13 @@ The first parameter, `connection`, can be two entirely different things.
 
  *  The normal option is to treat `connection` as a connection object or connect string that will be passed *directly*
     into the pg-promise module. As of the writing of this, `connection` can either be a connection string:
+
     ```javascript
     "postgres://username:password@localhost/database"
     ```
+
     Or it can be a connection object, e.g.
+
     ```javascript
     {
           user: 'postgres',
@@ -82,7 +85,7 @@ The first parameter, `connection`, can be two entirely different things.
     }
     ```
 
-If you are using this option, see the [pg module's documentation](https://github.com/brianc/node-postgres/wiki/pg#connectstring-connectionstring-function-callback).
+    If you are using this option, see the [pg module's documentation](https://github.com/brianc/node-postgres/wiki/pg#connectstring-connectionstring-function-callback).
 
  *  The other option, if you have an existing client for your postgres database, is to pass in a function
     that will transfer the queries to your client. The function must have the signature (query, parameters),
