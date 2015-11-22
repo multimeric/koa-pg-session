@@ -1,4 +1,4 @@
-# koa-pg-session
+ koa-pg-session
 
 ## Introduction
 

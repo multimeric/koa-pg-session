@@ -24,7 +24,7 @@ const db = pgp(connection);
 /**
  * Created by miguel on 21/11/15.
  */
-describe('PgSession constructor', () => {
+describe('#setup method', () => {
 
     /**
      * Returns true if the given table exists
