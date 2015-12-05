@@ -48,7 +48,7 @@
     "koa-generic-session": "^1.10.0",
     "mocha": "^2.3.4",
     "pg": "^4.4.3",
-    "pg-promise": "^2.3.3",
+    "pg-promise": "^2.6",
     "proxyquire": "^1.4.0",
     "request-promise": "^1.0.2",
     "sinon-es6": "0.0.3"
