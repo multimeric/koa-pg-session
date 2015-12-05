@@ -136,7 +136,7 @@ Additional session customisation is available through the options passed into th
 
 ```javascript
 app.use(session({
-    store: new PgStore("postgres://username:password@localhost/database"),
+    store: new PgStore("postgres://username:password@host:port/database"),
     allowEmpty: true
 }))
 ```
