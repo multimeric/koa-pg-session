@@ -1,11 +1,13 @@
 "use strict";
 
 //Requires
-const pgp = require('pg-promise')();
 const escape = require('pg-escape');
 const ms = require('ms');
 const Promise = require('bluebird');
 const EventEmitter = require('events');
+const pgp = require('pg-promise')({
+    promiseLib: Promise
+});
 
 module.exports = class PgSession extends EventEmitter {
 
