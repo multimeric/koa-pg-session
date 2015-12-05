@@ -1,6 +1,6 @@
 {
   "name": "koa-pg-session",
-  "version": "1.2.1",
+  "version": "2.0.0",
   "description": "A session store implementation for koa's generic-session module, using postgres as the backend",
   "keywords": [
     "session",
@@ -18,7 +18,7 @@
     "test": "mocha --harmony"
   },
   "engines": {
-    "node": ">= 0.11.16",
+    "node": ">= 4.0.0",
     "iojs": ">= 1.0.0"
   },
   "repository": {
