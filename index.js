@@ -78,6 +78,10 @@ module.exports = class PgSession extends EventEmitter {
 
     *get(sid) {
 
+        if (!this.ready)
+            throw new Error(`Error trying to access koa postgres session: session setup has not been run.
+            See https://github.com/TMiguelT/koa-pg-session#the-setup-function for details.`);
+
         //Get the existing session row
         const existing = (yield this.query(this.getValueSql, [sid]));
 
@@ -97,6 +101,10 @@ module.exports = class PgSession extends EventEmitter {
      */
 
     *set(sid, sess, ttl) {
+
+        if (!this.ready)
+            throw new Error(`Error trying to modify koa postgres session: session setup has not been run.
+            See https://github.com/TMiguelT/koa-pg-session#the-setup-function for details.`);
 
         ttl = ttl || ms("45 minutes");
         const expiry = (Date.now() + ttl) / 1000;
