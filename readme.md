@@ -21,7 +21,7 @@ Use the session somewhere in your middleware:
 
 ```javascript
 var app = require('koa')();
-var pgStore = new PgStore("postgres://username:password@localhost/database");
+var pgStore = new PgStore("postgres://username:password@host:port/database");
 app.use(session({
     store: pgStore
 }));
@@ -88,7 +88,7 @@ The first parameter, `connection`, can be two entirely different things.
     into the pg-promise module. As of the writing of this, `connection` can either be a connection string:
 
     ```javascript
-    "postgres://username:password@localhost/database"
+    "postgres://username:password@host:port/database"
     ```
 
     Or it can be a connection object, e.g.
