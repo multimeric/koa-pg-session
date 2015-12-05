@@ -21,9 +21,17 @@ Use the session somewhere in your middleware:
 
 ```javascript
 var app = require('koa')();
+var pgStore = new PgStore("postgres://username:password@localhost/database");
 app.use(session({
-    store: new PgStore("postgres://username:password@localhost/database")
-}))
+    store: pgStore
+}));
+```
+
+Run the setup function:
+```javascript
+pgStore.setup().then(function(){
+    app.listen(3000);
+});
 ```
 
 And you can then access and modify session data in your koa web app:
@@ -34,6 +42,16 @@ app.use(function *() {
     this.body = this.session.counter++;
 });
 ```
+
+### The Setup Function
+
+Note that this function is new since version 2.0. `setup()` must be called before session use as it is needed to
+connect to the database, create the session table (if required), and schedule the table cleanup.
+
+`setup()` returns a promise, allowing you to wait for setup to finish before starting your application
+(as above). While doing this is recommended, you don't need to wait for setup: you can just call `pgStore.setup()`
+and proceed with your application code without caring about when it's finished, but you'll need to hope no sessions
+will be created in the next few seconds.
 
 ## Database Table
 

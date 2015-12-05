@@ -360,8 +360,11 @@ describe("Compatibility with koa and koa-generic sessions", ()=> {
             try {
                 let opts = {url: 'http://localhost:3000/', jar: true};
                 assert((yield request(opts)) === "null");
+                yield Promise.delay(500);
                 assert((yield request(opts)) === "0");
+                yield Promise.delay(500);
                 assert((yield request(opts)) === "1");
+                yield Promise.delay(500);
                 assert((yield request(opts)) === "2");
                 server.server.close();
                 done();
@@ -399,11 +402,11 @@ describe("Compatibility with koa and koa-generic sessions", ()=> {
             try {
                 let opts = {url: 'http://localhost:3000/', jar: true};
                 assert((yield request(opts)) === "null");
-                yield Promise.delay(200);
+                yield Promise.delay(100);
                 assert((yield request(opts)) === "null");
-                yield Promise.delay(200);
+                yield Promise.delay(100);
                 assert((yield request(opts)) === "null");
-                yield Promise.delay(200);
+                yield Promise.delay(100);
                 assert((yield request(opts)) === "null");
                 server.server.close();
                 done();
