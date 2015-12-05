@@ -5,16 +5,19 @@ const pgp = require('pg-promise')();
 const escape = require('pg-escape');
 const ms = require('ms');
 const Promise = require('bluebird');
+const EventEmitter = require('events');
 
-module.exports = class PgSession {
+module.exports = class PgSession extends EventEmitter {
 
     /**
      * Creates a new PgSession model for use with koa-session-generic
      * @param connection The connection string or object to be passed directly into the pg module
      * @param options A hash consisting of all optional keys {schema="public", table="session", create=true, cleanupTime = 45 minutes}
-    * @constructor
+     * @constructor
      */
     constructor(connection, options) {
+
+        super();
 
         //If they want to use an existing client they must pass in a function to process each query.
         // Their function must return a promise.
@@ -28,6 +31,9 @@ module.exports = class PgSession {
                 return this.db.query(query, params);
             }
         }
+
+        //By default say that we're not ready to create sessions
+        this.ready = false;
 
         //And store the session options
         this.options = Object.assign({}, PgSession.defaultOpts, options);
@@ -48,21 +54,20 @@ module.exports = class PgSession {
      */
     setup() {
 
-        let sess = this;
+        //Only setup if we're not ready
+        if (this.ready)
+            return;
 
         //If we need to create the tables, return a promise that resolves once the query completes
-        if (this.options.create) {
-            return sess.query(sess.createSql).then(()=> {
-                this.cleanup();
-            });
-        }
-
         //Otherwise just setup the cleanup and return an empty promise
-        else {
-            return Promise.resolve().then(()=> {
-                this.cleanup();
-            });
-        }
+        let promise = this.options.create ? this.query(this.createSql) : Promise.resolve();
+
+        //Once we've finished creation, schedule cleanup and tell everyone we're ready
+        return promise.then(()=> {
+            this.scheduleCleanup();
+            this.ready = true;
+            this.emit('connect');
+        });
     };
 
     /**
@@ -117,7 +122,7 @@ module.exports = class PgSession {
     /**
      * Setup cleanup of all sessions in the session table that have expired
      */
-    cleanup() {
+    scheduleCleanup() {
         let sess = this;
 
         //Each interval of cleanupTime, run the cleanup script

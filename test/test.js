@@ -45,6 +45,16 @@ function* tableExists(table) {
 }
 
 /**
+ * Returns true if the given table has rows
+ * @param table An object of the form {schema, table} that refers to a specific table to check
+ */
+function* tableNotEmpty(table) {
+    return (yield db.query(`
+                SELECT COUNT(*) > 0 as exists
+                FROM "${table.schema}"."${table.table}"`))[0].exists;
+}
+
+/**
  * Deletes the schema containing the given table object
  * @param tableObject
  * @returns {*}
@@ -189,11 +199,10 @@ describe('#get #set, and #destroy (public interface) functions', ()=> {
     });
 });
 
-//describe('Cookie expiry')
-
 describe('Automatic cleanup', ()=> {
-    const session = new PgSession(connection, Object.assign({create: true}, sampleTable));
     const expiryTime = 100;
+    const beforeExpiry = 50;
+    const afterExpiry = 150;
 
     afterEach(function (done) {
         //Once we're done, delete the table
@@ -217,11 +226,19 @@ describe('Automatic cleanup', ()=> {
             //Before the expiry time (at 50ms, when the expiry is 100ms), the session should still be there
             setTimeout(()=> {
                 co(function*() {
-                    assert((yield* session.get(sampleID)) !== false);
-                    done();
+                    try {
+                        //Check that the API returns the session data
+                        assert((yield* session.get(sampleID)) !== false);
+                        //Check that it's in the database
+                        assert(yield* tableNotEmpty(sampleTable));
+                        done();
+                    }
+                    catch (ex) {
+                        done(ex);
+                    }
                 })();
 
-            }, 50);
+            }, beforeExpiry);
         })();
     });
 
@@ -240,11 +257,19 @@ describe('Automatic cleanup', ()=> {
             //After the expiry time (at 150ms when the expiry is 100ms), the session should be deleted
             setTimeout(()=> {
                 co(function*() {
-                    const sess = yield* session.get(sampleID);
-                    assert(sess === false);
-                    done();
+                    try {
+                        //Check that the API returns nothing
+                        assert((yield* session.get(sampleID)) === false);
+
+                        //Check that it's not in the database
+                        assert((yield* tableNotEmpty(sampleTable)) == false);
+                        done();
+                    }
+                    catch (ex) {
+                        done(ex);
+                    }
                 })();
-            }, 150);
+            }, afterExpiry);
         })();
     });
 
@@ -264,76 +289,129 @@ describe('Automatic cleanup', ()=> {
             //Create the first session
             yield* session.set(sampleID, values, expiryTime);
 
-            //Every 200ms, check that the old session is deleted, and add a new one
+            //Every 150ms, check that the old session is deleted, and add a new one
             let counter = 0;
-            const iid = setInterval(() => {
+            const iid = setInterval(co(function*() {
 
                 //Check the old session has gone
-                co(function*() {
-                    const sess = yield* session.get(sampleID);
-                    assert(sess === false);
-                })();
+                const sess = yield* session.get(sampleID);
+                assert(sess === false);
 
                 //Increment the counter and quit when we're done
+                //Check that the table is clean when we quit
                 counter++;
                 if (counter >= 4) {
+                    assert((yield* tableNotEmpty(sampleTable)) == false);
                     done();
                     clearInterval(iid);
-                } else {
-                    //Add a new session if we're not going to quit
-                    co(function*() {
-                        yield* session.set(sampleID, values, expiryTime);
-                    })();
-                }
-            }, 200);
+
+                } else
+                //Add a new session if we're not going to quit
+                    yield* session.set(sampleID, values, expiryTime);
+            }), 200);
         })();
     });
 });
 
 describe("Compatibility with koa and koa-generic sessions", ()=> {
-    const session = new PgSession(connection, Object.assign({create: true}, sampleTable));
-
-    before(function (done) {
-        //First we have to setup the session manager
-        session.setup().then(()=> {
-            done();
-        })
-    });
-
-    after(function (done) {
-        //Once we're done, delete the table
-        deleteSchema(sampleTable).then(() => {
-            done();
-        });
-    });
-
-    it("Should persist data between sessions", function (done) {
-        this.timeout(0);
-
+    const makeApp = function (genericOpts) {
         //Make a little koa server
         const app = koa();
         app.keys = ['keys', 'keykeys'];
-        app.use(generic({
-            store: session
-        }));
+        app.use(generic(genericOpts));
 
         //Whenever we visit the server, update the counter and display the current count
         app.use(function *() {
             this.body = this.session.test++;
         });
 
-        app.listen(3000);
+        let server = app.listen(3000);
 
-        //Check that the counter is working
-        co(function*() {
-            let opts = {url: 'http://localhost:3000/', jar: true};
-            assert((yield request(opts)) === "null");
-            assert((yield request(opts)) === "0");
-            assert((yield request(opts)) === "1");
-            assert((yield request(opts)) === "2");
+        return {
+            app,
+            server
+        };
+    };
+
+    afterEach(function (done) {
+        //Once we're done, delete the table
+        deleteSchema(sampleTable).then(() => {
             done();
+        });
+    });
+
+    it("should persist data between sessions", function (done) {
+        this.timeout(0);
+
+        co(function*() {
+
+            //Make the session class and create a server that uses it
+            const session = new PgSession(connection, Object.assign({create: true}, sampleTable));
+            yield session.setup();
+            let server = makeApp({
+                store: session
+            });
+            server.app.on('error', function(err, ctx){
+                let message = `${error}:${ctx}`;
+                done(new Error(message));
+            });
+
+            //Check that the counter is working
+            try {
+                let opts = {url: 'http://localhost:3000/', jar: true};
+                assert((yield request(opts)) === "null");
+                assert((yield request(opts)) === "0");
+                assert((yield request(opts)) === "1");
+                assert((yield request(opts)) === "2");
+                server.server.close();
+                done();
+            }
+            catch (ex) {
+                server.server.close();
+                done(ex);
+            }
         })();
 
+    });
+
+    it("should expire cookies even before cleanup occurs", function (done) {
+        this.timeout(0);
+
+        co(function*() {
+            //Make the session class and create a server that uses it.
+            const session = new PgSession(connection, Object.assign({create: true}, sampleTable));
+            yield session.setup().then();
+            //This particular app expires cookies in 100ms, so we shouldn't have any session data if we check
+            //every 200ms
+            let server = makeApp({
+                store: session,
+                //ttl: 100 //This should work but we have to use cookie.maxAge instead
+                cookie: {
+                    maxAge: 100
+                }
+            });
+            server.app.on('error', function(err){
+                done(err);
+            });
+
+            //Check that the cookies are expiring every 100ms
+
+            try {
+                let opts = {url: 'http://localhost:3000/', jar: true};
+                assert((yield request(opts)) === "null");
+                yield Promise.delay(200);
+                assert((yield request(opts)) === "null");
+                yield Promise.delay(200);
+                assert((yield request(opts)) === "null");
+                yield Promise.delay(200);
+                assert((yield request(opts)) === "null");
+                server.server.close();
+                done();
+            }
+            catch (ex) {
+                done(ex);
+            }
+        })();
     });
 });
 
@@ -341,7 +419,7 @@ describe('custom client option', ()=> {
     const pg = require('co-pg')(require('pg'));
     const client = new pg.Client(connection);
 
-    it('Correctly creates a new table with a custom client', done=> {
+    it('correctly creates a new table with a custom client', done=> {
 
         co(function*() {
             //Connect to the custom client
@@ -352,7 +430,7 @@ describe('custom client option', ()=> {
                 return client.queryPromise(query, args)
             }, Object.assign({create: true}, sampleTable), true);
 
-            yield session.setup();
+            yield session.setup().then();
 
             //If the table exists, everything's working, but also delete it to clean up
             let exists = yield* tableExists(sampleTable);
