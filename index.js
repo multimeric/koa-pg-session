@@ -137,7 +137,7 @@ module.exports = class PgSession extends EventEmitter {
 
         //Each interval of cleanupTime, run the cleanup script
         setTimeout(function interval() {
-            sess.query(sess.cleanupSql, Date.now()).then(()=> {
+            sess.query(sess.cleanupSql).then(()=> {
                 //Recurse so that the cleanupTime can be dynamic
                 setTimeout(interval, sess.options.cleanupTime);
             });
@@ -211,7 +211,7 @@ module.exports = class PgSession extends EventEmitter {
      */
     get cleanupSql() {
         return escape(
-            'DELETE FROM %I.%I WHERE expiry <= to_timestamp($1);',
+            'DELETE FROM %I.%I WHERE expiry <= now();',
             this.options.schema,
             this.options.table
         );
