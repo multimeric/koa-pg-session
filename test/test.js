@@ -203,6 +203,7 @@ describe('Automatic cleanup', ()=> {
     const expiryTime = 100;
     const beforeExpiry = 50;
     const afterExpiry = 150;
+    const cleanupTime = 25;
 
     afterEach(function (done) {
         //Once we're done, delete the table
@@ -217,7 +218,7 @@ describe('Automatic cleanup', ()=> {
             //Create the session and begin cleanup
             const session = new PgSession(
                 connection,
-                Object.assign({create: true, cleanupTime: expiryTime},
+                Object.assign({create: true, cleanupTime: cleanupTime},
                     sampleTable)
             );
             yield session.setup();
