@@ -62,7 +62,9 @@ module.exports = class PgSession extends EventEmitter {
 
         //If we need to create the tables, return a promise that resolves once the query completes
         //Otherwise just setup the cleanup and return an empty promise
-        let promise = this.options.create ? this.query(this.createSql) : Promise.resolve();
+        let promise = this.options.create ?
+            this.query(this.createSql).then(() => { return this.query(this.createExpiryIndexSql); }) :
+            Promise.resolve();
 
         //Once we've finished creation, schedule cleanup and tell everyone we're ready
         return promise.then(()=> {
@@ -159,6 +161,16 @@ module.exports = class PgSession extends EventEmitter {
             this.options.schema,
             this.options.schema,
             this.options.table
+        );
+    }
+
+    get createExpiryIndexSql() {
+        return escape(
+            'CREATE INDEX IF NOT EXISTS %I ON %I.%I (%I);',
+            this.options.table + '_expiry',
+            this.options.schema,
+            this.options.table,
+            'expiry'
         );
     }
 
