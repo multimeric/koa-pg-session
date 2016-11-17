@@ -87,7 +87,8 @@ module.exports = class PgSession extends EventEmitter {
             See https://github.com/TMiguelT/koa-pg-session#the-setup-function for details.`);
 
         //Get the existing session row
-        const existing = (yield this.query(this.getValueSql, [sid]));
+        const now = Date.now() / 1000;
+        const existing = (yield this.query(this.getValueSql, [sid, now]));
 
         //If there is no such row, return false
         if (existing.length <= 0)
@@ -179,7 +180,7 @@ module.exports = class PgSession extends EventEmitter {
      */
     get getValueSql() {
         return escape(
-            'SELECT session FROM %I.%I WHERE id = $1;',
+            'SELECT session FROM %I.%I WHERE id = $1 AND expiry > to_timestamp($2);',
             this.options.schema,
             this.options.table
         );
