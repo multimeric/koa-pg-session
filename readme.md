@@ -1,5 +1,7 @@
 # koa-pg-session
 
+***This module, along with koa-generic-session is deprecated in favour of the official koa-session. If you need to access postgres using koa, please refer to its documentation here: https://github.com/koajs/session#external-session-stores***
+
 ## Introduction
 
 koa-pg-session is an implementation of a session store for koa's [generic session module](https://github.com/koajs/generic-session) that uses Postgres to hold the session data.
